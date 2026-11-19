@@ -1,6 +1,9 @@
 """Orquestra uma execução local: lê, classifica, agrega, reconcilia e publica.
 
-Modelo de publicação (ver docs/ARQUITETURA.md):
+Saída particionada por mês: <saida_raiz>/month=AAAA-MM/ é uma publicação independente, com seu próprio
+ponteiro `current`. Reprocessar um mês troca apenas a partição dele.
+
+Modelo de publicação dentro de cada partição (ver docs/ARQUITETURA.md):
   1. Entrada validada antes de qualquer escrita.
   2. Saídas escritas em <saida>/runs/.tmp-<run_id>/.
   3. Contagens reconciliadas a partir dos arquivos gravados.
@@ -24,6 +27,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 from mobility_pipeline import __version__
+from mobility_pipeline.download import validate_month
 from mobility_pipeline.errors import ExecutionError, PipelineError, ReconciliationError
 from mobility_pipeline.inputs import ensure_not_empty, read_trips, read_zones
 from mobility_pipeline.transform import (
@@ -36,24 +40,34 @@ from mobility_pipeline.transform import (
 LOGGER = logging.getLogger(__name__)
 
 CURRENT_POINTER = "current"
+PARTITION_PREFIX = "month="
 RUNS_DIR = "runs"
 TABLES = ("valid", "rejected", "demand_hourly")
 SUMMARY_FILE = "run_summary.json"
+
+
+def partition_dir(output_root: Path, month: str) -> Path:
+    """Pasta da partição de um mês dentro da saída raiz."""
+    return Path(output_root) / f"{PARTITION_PREFIX}{validate_month(month)}"
 
 
 def run_pipeline(
     spark: SparkSession,
     input_path: Path,
     zones_path: Path,
-    output_dir: Path,
+    output_root: Path,
+    month: str,
 ) -> dict:
-    """Executa o pipeline completo e devolve o resumo da execução (também gravado em disco)."""
+    """Processa o mês `month` da entrada e publica a partição correspondente em `output_root`.
+
+    Devolve o resumo da execução (também gravado na partição).
+    """
     started_at = datetime.now(timezone.utc)
     started_clock = time.monotonic()
     run_id = f"{started_at:%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}"
     input_path = Path(input_path)
     zones_path = Path(zones_path)
-    output_dir = Path(output_dir)
+    output_dir = partition_dir(output_root, month)
 
     runs_dir = output_dir / RUNS_DIR
     pending_dir = runs_dir / f".tmp-{run_id}"
@@ -68,7 +82,7 @@ def run_pipeline(
         runs_dir.mkdir(parents=True, exist_ok=True)
         pending_dir.mkdir()
 
-        classified = classify_trips(trips, zones)
+        classified = classify_trips(trips, zones, month)
         valid, rejected = split_valid_rejected(classified)
         demand = aggregate_demand(valid)
 
@@ -86,6 +100,8 @@ def run_pipeline(
             "run_id": run_id,
             "pipeline_version": __version__,
             "status": "success",
+            "month": month,
+            "partition": str(output_dir),
             "started_at": started_at.isoformat(timespec="seconds"),
             "finished_at": finished_at.isoformat(timespec="seconds"),
             "duration_seconds": round(time.monotonic() - started_clock, 3),

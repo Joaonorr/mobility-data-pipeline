@@ -19,6 +19,7 @@ Um registro rejeitado vai para `rejected`, com a lista de motivos em `reject_rea
 | `missing_pickup_location` | `PULocationID` é nulo | Sem zona não há região de embarque | 0 casos (regra defensiva) |
 | `unknown_pickup_zone` | `PULocationID` não existe em `reference/taxi_zone_lookup.csv` | Zona fora da referência oficial não pode ser agregada por região | 0 casos (todos os valores estão entre 1 e 265) |
 | `dropoff_before_pickup` | `tpep_dropoff_datetime < tpep_pickup_datetime` | Intervalo impossível: ou o embarque ou o desembarque está errado, e a fonte não diz qual. A hora de embarque fica sob dúvida. | 124 casos |
+| `outside_partition_month` | `tpep_pickup_datetime` cai em outro mês que não o da partição (`--month`) | Cada corrida entra em uma única partição, pelo mês do embarque. Assim nenhuma corrida é contada em dois meses. Registros de borda de arquivos mensais vizinhos aparecem como contagem consultável. | 2025-01: 22 casos (21 em 31/12/2024, 1 em 01/02/2025). 2024-12: 34 casos (26 em 30/11/2024, 3 com ano 2008/2009, 5 com data de 2025) |
 
 Decisões ligadas às rejeições:
 
@@ -43,9 +44,18 @@ O resumo de cada execução (`run_summary.json`) mostra essas contagens. Os núm
 
 Valores extremos também são mantidos. Em 2025-01 há `trip_distance` máximo de 276.423,57 milhas. É um valor claramente errado, mas não afeta a contagem de demanda, e removê-lo sem uma regra de distância seria arbitrário. Uma regra de distância pode ser adicionada depois, com justificativa e evidência.
 
-## Pendências para a etapa de particionamento mensal
+## Decisão da etapa 2: embarque fora do mês
 
-- **22 registros de 2025-01 têm embarque fora do mês** (31/12/2024 e 01/02/2025). A primeira entrega não filtra por período. Na etapa 2, a partição mensal precisa decidir: rejeitar com motivo próprio (`outside_partition_month`) ou aceitar em um mês vizinho. Ambas as escolhas exigem reconciliação entre meses.
+Cada mês é uma partição (`<saida>/month=AAAA-MM/`). Um registro cujo embarque cai em outro mês é rejeitado com `outside_partition_month`. Escolhi isso em vez de aceitar a corrida no mês vizinho pelo motivo abaixo.
+
+**Lacuna medida, não resolvida:** a corrida do arquivo de janeiro com embarque em 31/12/2024 não aparece no arquivo de dezembro.
+
+- Dezembro tem 88.681 embarques em 31/12/2024. O join por embarque, desembarque e zona não encontrou nenhuma das 21 corridas de janeiro nesse conjunto.
+- Aceitar essas 21 corridas em janeiro quebraria a análise por dia: teriam `pickup_date` de 31/12 dentro da partição de janeiro.
+- Resultado: 21 corridas de 31/12/2024 ficam sem partição quando só dezembro e janeiro são processados. A corrida de 01/02/2025 (rejeitada em janeiro) entra na partição de fevereiro, quando ela for processada.
+- Medição feita com `query` sobre as partições publicadas em 2026-11-19. Recalcular se a fonte mudar.
+
+Os 3 registros de dezembro com ano de embarque 2008 ou 2009 e os 5 com data de 2025 são erros da fonte. A regra os separa como fora do mês e não os remove sem contagem.
 - **Esquema pode mudar entre anos.** `cbd_congestion_fee` aparece a partir de 2025 (o próprio TLC menciona a mudança). A TLC também diz que pode padronizar o esquema Parquet no futuro. O pipeline só exige as três colunas usadas; as demais são preservadas quando existem.
 
 ## Validação de esquema (falha a execução; nada é publicado)

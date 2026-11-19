@@ -1,4 +1,4 @@
-"""Interface de linha de comando: 'download' obtém os meses; 'run' executa o pipeline; 'query' consulta a última publicação."""
+"""Interface de linha de comando: 'download' obtém os meses; 'run' processa um mês; 'query' consulta as partições publicadas."""
 
 import argparse
 import json
@@ -55,10 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_ZONES,
         help=f"CSV oficial de zonas da TLC (padrão: {DEFAULT_ZONES})",
     )
-    run.add_argument("--output", required=True, type=Path, help="pasta de saída")
+    run.add_argument("--month", required=True, help="mês da partição, AAAA-MM (ex.: 2025-01)")
+    run.add_argument("--output", required=True, type=Path, help="pasta raiz da saída (cria month=AAAA-MM/)")
 
     query = commands.add_parser("query", help="executa SQL sobre a última publicação")
-    query.add_argument("--output", required=True, type=Path, help="pasta de saída de uma execução")
+    query.add_argument("--output", required=True, type=Path, help="pasta raiz da saída (lê todas as partições)")
     query.add_argument("--sql", required=True, type=Path, help="arquivo .sql com uma consulta")
     query.add_argument("--limit", type=int, default=50, help="linhas exibidas (padrão: 50)")
     return parser
@@ -86,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     spark = create_spark_session()
     try:
         if args.command == "run":
-            summary = run_pipeline(spark, args.input, args.zones, args.output)
+            summary = run_pipeline(spark, args.input, args.zones, args.output, args.month)
             print(json.dumps(summary, indent=2, ensure_ascii=False))
         else:
             run_query(spark, args.output, args.sql).show(args.limit, truncate=False)

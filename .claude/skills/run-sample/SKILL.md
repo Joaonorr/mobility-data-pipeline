@@ -10,7 +10,7 @@ disable-model-invocation: true
 2. Rode a execução:
 
    ```bash
-   .venv/bin/python -m mobility_pipeline run --input sample/yellow_sample.parquet --output data/output/sample
+   .venv/bin/python -m mobility_pipeline run --input sample/yellow_sample.parquet --month 2025-01 --output data/output/sample
    ```
 
 3. Confira o JSON impresso. Valores esperados, conforme `sample/CASOS.md`:

@@ -12,8 +12,8 @@ Use o Python do venv diretamente; não há `activate` persistente entre comandos
 ```bash
 .venv/bin/python -m pytest                                   # suíte completa (28 testes, ~25 s)
 .venv/bin/python -m mobility_pipeline download                # baixa os 2 meses de reference/tlc_download.json para data/raw (manifesto)
-.venv/bin/python -m mobility_pipeline run --input sample/yellow_sample.parquet --output data/output/sample
-.venv/bin/python -m mobility_pipeline query --output data/output/sample --sql sql/rejected_by_reason.sql
+.venv/bin/python -m mobility_pipeline run --input sample/yellow_sample.parquet --month 2025-01 --output data/output/sample   # cria data/output/sample/month=2025-01/
+.venv/bin/python -m mobility_pipeline query --output data/output/sample --sql sql/rejected_by_reason.sql   # une as partições publicadas
 .venv/bin/python scripts/build_sample_parquet.py             # regenera sample/yellow_sample.parquet
 .venv/bin/python -m pyflakes src tests scripts               # checagem estática (pyflakes, incluído em [dev])
 ```

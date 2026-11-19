@@ -32,8 +32,8 @@ Estado: **primeira entrega funcional local** (amostra sintética) e **etapa 1** 
   +---------------------------------------------------------------+
               |
               v
-  <saida>/current  ->  runs/<id>/
-                        valid/          registros válidos
+  <saida>/month=AAAA-MM/current  ->  runs/<id>/   (uma publicação por mês)
+                        valid/          registros válidos do mês
                         rejected/       registros rejeitados + reject_reasons
                         demand_hourly/  viagens por dia, hora e zona de embarque
                         run_summary.json  contagens, motivos, observações, duração

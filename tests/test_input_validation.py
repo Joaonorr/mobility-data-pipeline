@@ -18,15 +18,15 @@ from mobility_pipeline.errors import (
     ReconciliationError,
     ZoneReferenceError,
 )
-from mobility_pipeline.pipeline import run_pipeline
+from mobility_pipeline.pipeline import partition_dir, run_pipeline
 from mobility_pipeline.query import current_run_dir
 
 
-def _publication_state(output):
-    """Ponteiro atual e lista de execuções: deve ficar idêntico depois de uma falha."""
-    pointer = output / "current"
+def _publication_state(partition):
+    """Ponteiro atual e lista de execuções da partição: deve ficar idêntico depois de uma falha."""
+    pointer = partition / "current"
     current = pointer.read_text(encoding="utf-8") if pointer.exists() else None
-    runs_dir = output / "runs"
+    runs_dir = partition / "runs"
     runs = sorted(entry.name for entry in runs_dir.iterdir()) if runs_dir.exists() else []
     return current, runs
 
@@ -45,14 +45,14 @@ def _trip_table(**overrides):
 @pytest.fixture
 def published_output(spark, tmp_path):
     output = tmp_path / "output"
-    run_pipeline(spark, SAMPLE_INPUT, ZONES, output)
+    run_pipeline(spark, SAMPLE_INPUT, ZONES, output, "2025-01")
     return output
 
 
 def test_missing_input_fails_before_any_output_is_created(spark, tmp_path):
     output = tmp_path / "output"
     with pytest.raises(InputNotFoundError, match="entrada não encontrada"):
-        run_pipeline(spark, tmp_path / "nao_existe.parquet", ZONES, output)
+        run_pipeline(spark, tmp_path / "nao_existe.parquet", ZONES, output, "2025-01")
     assert not output.exists()
 
 
@@ -60,7 +60,7 @@ def test_directory_without_parquet_files_is_reported(spark, tmp_path):
     empty = tmp_path / "vazio"
     empty.mkdir()
     with pytest.raises(InputNotFoundError, match="nenhum arquivo .parquet"):
-        run_pipeline(spark, empty, ZONES, tmp_path / "output")
+        run_pipeline(spark, empty, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_truncated_parquet_is_reported_as_corrupted(spark, tmp_path):
@@ -68,28 +68,28 @@ def test_truncated_parquet_is_reported_as_corrupted(spark, tmp_path):
     data = SAMPLE_INPUT.read_bytes()
     truncated.write_bytes(data[: len(data) // 2])
     with pytest.raises(InputCorruptedError, match="não foi possível ler"):
-        run_pipeline(spark, truncated, ZONES, tmp_path / "output")
+        run_pipeline(spark, truncated, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_text_file_with_parquet_name_is_reported_as_corrupted(spark, tmp_path):
     fake = tmp_path / "texto.parquet"
     fake.write_text("isto não é Parquet\n", encoding="utf-8")
     with pytest.raises(InputCorruptedError):
-        run_pipeline(spark, fake, ZONES, tmp_path / "output")
+        run_pipeline(spark, fake, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_missing_required_column_is_incompatible(spark, tmp_path):
     path = tmp_path / "sem_zona.parquet"
     pq.write_table(_trip_table().drop_columns(["PULocationID"]), path)
     with pytest.raises(IncompatibleInputError, match="coluna ausente 'PULocationID'"):
-        run_pipeline(spark, path, ZONES, tmp_path / "output")
+        run_pipeline(spark, path, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_wrong_column_type_is_incompatible(spark, tmp_path):
     path = tmp_path / "zona_texto.parquet"
     pq.write_table(_trip_table(PULocationID=pa.array(["161"])), path)
     with pytest.raises(IncompatibleInputError, match="'PULocationID' tem tipo string"):
-        run_pipeline(spark, path, ZONES, tmp_path / "output")
+        run_pipeline(spark, path, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_timestamp_with_timezone_is_incompatible(spark, tmp_path):
@@ -97,14 +97,14 @@ def test_timestamp_with_timezone_is_incompatible(spark, tmp_path):
     aware = pa.array([datetime(2025, 1, 6, 8, 5)], type=pa.timestamp("us", tz="UTC"))
     pq.write_table(_trip_table(tpep_pickup_datetime=aware), path)
     with pytest.raises(IncompatibleInputError, match="esperado timestamp_ntz"):
-        run_pipeline(spark, path, ZONES, tmp_path / "output")
+        run_pipeline(spark, path, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_input_without_records_is_rejected(spark, tmp_path):
     path = tmp_path / "vazio.parquet"
     pq.write_table(_trip_table().slice(0, 0), path)
     with pytest.raises(EmptyInputError):
-        run_pipeline(spark, path, ZONES, tmp_path / "output")
+        run_pipeline(spark, path, ZONES, tmp_path / "output", "2025-01")
 
 
 def test_zone_table_with_duplicate_ids_is_rejected(spark, tmp_path):
@@ -116,19 +116,19 @@ def test_zone_table_with_duplicate_ids_is_rejected(spark, tmp_path):
         encoding="utf-8",
     )
     with pytest.raises(ZoneReferenceError, match="LocationID duplicado"):
-        run_pipeline(spark, SAMPLE_INPUT, zones, tmp_path / "output")
+        run_pipeline(spark, SAMPLE_INPUT, zones, tmp_path / "output", "2025-01")
 
 
 def test_zone_table_with_unexpected_header_is_rejected(spark, tmp_path):
     zones = tmp_path / "zonas.csv"
     zones.write_text("id,nome\n1,Newark\n", encoding="utf-8")
     with pytest.raises(ZoneReferenceError, match="cabeçalho"):
-        run_pipeline(spark, SAMPLE_INPUT, zones, tmp_path / "output")
+        run_pipeline(spark, SAMPLE_INPUT, zones, tmp_path / "output", "2025-01")
 
 
 def test_missing_zone_table_is_reported(spark, tmp_path):
     with pytest.raises(InputNotFoundError, match="tabela de zonas não encontrada"):
-        run_pipeline(spark, SAMPLE_INPUT, tmp_path / "sem_zonas.csv", tmp_path / "output")
+        run_pipeline(spark, SAMPLE_INPUT, tmp_path / "sem_zonas.csv", tmp_path / "output", "2025-01")
 
 
 @pytest.mark.parametrize(
@@ -140,9 +140,9 @@ def test_missing_zone_table_is_reported(spark, tmp_path):
     ],
 )
 def test_failed_input_keeps_previous_publication(spark, tmp_path, published_output, bad_input):
-    before = _publication_state(published_output)
+    before = _publication_state(partition_dir(published_output, "2025-01"))
     before_total = (
-        spark.read.parquet(str(current_run_dir(published_output) / "demand_hourly"))
+        spark.read.parquet(str(current_run_dir(partition_dir(published_output, "2025-01")) / "demand_hourly"))
         .agg({"trip_count": "sum"})
         .first()[0]
     )
@@ -158,11 +158,11 @@ def test_failed_input_keeps_previous_publication(spark, tmp_path, published_outp
         path.write_bytes(data[: len(data) // 2])
 
     with pytest.raises(PipelineError):
-        run_pipeline(spark, path, ZONES, published_output)
+        run_pipeline(spark, path, ZONES, published_output, "2025-01")
 
-    assert _publication_state(published_output) == before
+    assert _publication_state(partition_dir(published_output, "2025-01")) == before
     assert (
-        spark.read.parquet(str(current_run_dir(published_output) / "demand_hourly"))
+        spark.read.parquet(str(current_run_dir(partition_dir(published_output, "2025-01")) / "demand_hourly"))
         .agg({"trip_count": "sum"})
         .first()[0]
         == before_total
@@ -170,40 +170,40 @@ def test_failed_input_keeps_previous_publication(spark, tmp_path, published_outp
 
 
 def test_processing_failure_does_not_publish(spark, monkeypatch, published_output):
-    before = _publication_state(published_output)
+    before = _publication_state(partition_dir(published_output, "2025-01"))
 
     def broken_aggregation(valid):
         raise RuntimeError("falha simulada na agregação")
 
     monkeypatch.setattr(pipeline_module, "aggregate_demand", broken_aggregation)
     with pytest.raises(ExecutionError, match="falha simulada na agregação"):
-        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output)
+        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output, "2025-01")
 
-    assert _publication_state(published_output) == before
+    assert _publication_state(partition_dir(published_output, "2025-01")) == before
 
 
 def test_failed_reconciliation_does_not_publish(spark, monkeypatch, published_output):
-    before = _publication_state(published_output)
+    before = _publication_state(partition_dir(published_output, "2025-01"))
 
     def mismatch(*args, **kwargs):
         raise ReconciliationError("contagens não batem (simulado)")
 
     monkeypatch.setattr(pipeline_module, "_reconcile", mismatch)
     with pytest.raises(ReconciliationError):
-        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output)
+        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output, "2025-01")
 
-    assert _publication_state(published_output) == before
+    assert _publication_state(partition_dir(published_output, "2025-01")) == before
 
 
 def test_failure_after_directory_rename_is_rolled_back(spark, monkeypatch, published_output):
     """A pasta da nova execução já foi renomeada, mas o ponteiro não foi trocado: a pasta deve sumir."""
-    before = _publication_state(published_output)
+    before = _publication_state(partition_dir(published_output, "2025-01"))
 
     def pointer_failure(output_dir, run_id):
         raise OSError("disco cheio (simulado)")
 
     monkeypatch.setattr(pipeline_module, "_switch_current_pointer", pointer_failure)
     with pytest.raises(ExecutionError, match="disco cheio"):
-        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output)
+        run_pipeline(spark, SAMPLE_INPUT, ZONES, published_output, "2025-01")
 
-    assert _publication_state(published_output) == before
+    assert _publication_state(partition_dir(published_output, "2025-01")) == before

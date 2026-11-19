@@ -41,7 +41,7 @@ Resumo em `docs/ARQUITETURA.md`. Em uma frase: funções PySpark puras (`transfo
 | Etapa | Escopo | Decisão já tomada |
 |---|---|---|
 | 1. Download de dois meses reais | **Concluída.** `python -m mobility_pipeline download` baixa do CloudFront, registra URL, SHA-256, tamanho e data em `data/raw/manifest.json`, e grava o resultado de cada execução. Arquivos grandes ficam fora do Git. | Meses fixados: `2024-12` (sem `cbd_congestion_fee`) e `2025-01` (com ela). Testa a tolerância a mudança de esquema. Ambos foram baixados e têm as colunas exigidas (ver `reference/FONTES.md`). |
-| 2. Processamento mensal particionado | Saída particionada por mês de embarque. Reexecutar um mês substitui só a partição dele. | Tratar os 22 registros fora do mês (ver `docs/REGRAS_QUALIDADE.md`). |
+| 2. Processamento mensal particionado | **Concluída na branch `feat/etapa-2-particao-mensal`.** `run --month AAAA-MM` publica `<saida>/month=AAAA-MM/`, com ponteiro próprio. Reprocessar um mês troca só a partição dele. `query` une as partições. | Embarque fora do mês é rejeitado com `outside_partition_month`. Lacuna de 21 corridas de 31/12/2024 medida e documentada em `docs/REGRAS_QUALIDADE.md`. |
 | 3. DAG do Airflow | Tarefas: ingestão, validação, transformação e publicação, com retries e reprocessamento de um mês. | Fixar `apache-airflow` depois de confirmar a versão e a data de publicação no PyPI. |
 | 4. Métricas por execução | Lidos, válidos, rejeitados, duração, partição e status. Falha nunca publica saída incompleta. | Já existe um `run_summary.json` com parte disso; a etapa 4 o estende a todas as partições. |
 | 5. CI no GitHub Actions | Testes e verificações estáticas (ex.: ruff). Não baixa os meses completos; usa só a amostra. | Testes continuam na amostra; sem dados grandes no CI. |
@@ -68,7 +68,8 @@ Resumo em `docs/ARQUITETURA.md`. Em uma frase: funções PySpark puras (`transfo
 | Esquema muda entre meses ou é padronizado pela TLC | Colunas somem ou mudam de tipo | Só as colunas usadas são obrigatórias; falha clara em caso de tipo incompatível |
 | Java ausente ou versão não suportada | Spark não inicia | README indica as versões; mensagem de erro do Spark é repassada |
 | Dados reais têm volume maior que a amostra | Testes lentos ou execução pesada | Testes continuam na amostra; medição de desempenho só com dados reais e registrada como observação |
-| Lógica de "fora do mês" mal definida | Dupla contagem ou perda de registros na etapa 2 | Reconciliação entre meses; decisão documentada antes da implementação |
+| Lógica de "fora do mês" mal definida | Dupla contagem ou perda de registros na etapa 2 | Cada corrida entra em uma única partição; teste de corrida presente em dois arquivos; lacuna medida e documentada |
+| Fonte com corridas de borda ausentes no mês vizinho | Corridas de 31/12/2024 sem partição (21 casos em 2025-01) | Medido e documentado; decisão de fechamento de fronteira fica para depois |
 
 ## 8. Critérios de aceite
 

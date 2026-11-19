@@ -14,7 +14,7 @@ from helpers import (
     read_csv_rows,
 )
 
-from mobility_pipeline.pipeline import run_pipeline
+from mobility_pipeline.pipeline import partition_dir, run_pipeline
 from mobility_pipeline.query import current_run_dir, run_query
 from mobility_pipeline.transform import (
     REASON_DROPOFF_BEFORE_PICKUP,
@@ -35,8 +35,8 @@ SOURCE_COLUMNS = [
 @pytest.fixture(scope="module")
 def published(spark, tmp_path_factory):
     output = tmp_path_factory.mktemp("sample") / "output"
-    summary = run_pipeline(spark, SAMPLE_INPUT, ZONES, output)
-    return output, summary, current_run_dir(output)
+    summary = run_pipeline(spark, SAMPLE_INPUT, ZONES, output, "2025-01")
+    return output, summary, current_run_dir(partition_dir(output, "2025-01"))
 
 
 def _table(spark, run_dir, name):

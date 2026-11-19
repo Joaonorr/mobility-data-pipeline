@@ -14,19 +14,23 @@ REASON_MISSING_PICKUP_DATETIME = "missing_pickup_datetime"
 REASON_MISSING_PICKUP_LOCATION = "missing_pickup_location"
 REASON_UNKNOWN_PICKUP_ZONE = "unknown_pickup_zone"
 REASON_DROPOFF_BEFORE_PICKUP = "dropoff_before_pickup"
+REASON_OUTSIDE_PARTITION_MONTH = "outside_partition_month"
 
 REJECTION_REASONS = (
     REASON_MISSING_PICKUP_DATETIME,
     REASON_MISSING_PICKUP_LOCATION,
     REASON_UNKNOWN_PICKUP_ZONE,
     REASON_DROPOFF_BEFORE_PICKUP,
+    REASON_OUTSIDE_PARTITION_MONTH,
 )
 
 _ZONE_ID = "_zone_location_id"
 
 
-def classify_trips(trips: DataFrame, zones: DataFrame) -> DataFrame:
+def classify_trips(trips: DataFrame, zones: DataFrame, month: str) -> DataFrame:
     """Anexa a cada corrida os motivos de rejeição (array vazio = válida), sem remover linhas.
+
+    `month` (AAAA-MM) é o mês da partição: embarques fora dele são rejeitados.
 
     Colunas acrescentadas: pu_borough, pu_zone, pu_service_zone (da tabela de zonas),
     reject_reasons (array<string>) e source_file (nome do arquivo de origem).
@@ -62,6 +66,10 @@ def classify_trips(trips: DataFrame, zones: DataFrame) -> DataFrame:
                 F.lit(REASON_UNKNOWN_PICKUP_ZONE),
             ),
             F.when(dropoff < pickup, F.lit(REASON_DROPOFF_BEFORE_PICKUP)),
+            F.when(
+                pickup.isNotNull() & (F.date_format(pickup, "yyyy-MM") != F.lit(month)),
+                F.lit(REASON_OUTSIDE_PARTITION_MONTH),
+            ),
         )
     )
 

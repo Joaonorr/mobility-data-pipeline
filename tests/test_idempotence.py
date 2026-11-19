@@ -2,7 +2,7 @@
 
 from helpers import SAMPLE_INPUT, ZONES, project
 
-from mobility_pipeline.pipeline import run_pipeline
+from mobility_pipeline.pipeline import partition_dir, run_pipeline
 from mobility_pipeline.query import current_run_dir
 
 TABLES = {
@@ -21,18 +21,18 @@ def _table_contents(spark, run_dir, name):
 def test_rerun_publishes_same_logical_result_without_duplicates(spark, tmp_path):
     output = tmp_path / "output"
 
-    first = run_pipeline(spark, SAMPLE_INPUT, ZONES, output)
-    first_run = current_run_dir(output)
+    first = run_pipeline(spark, SAMPLE_INPUT, ZONES, output, "2025-01")
+    first_run = current_run_dir(partition_dir(output, "2025-01"))
     first_contents = {name: _table_contents(spark, first_run, name) for name in TABLES}
 
-    second = run_pipeline(spark, SAMPLE_INPUT, ZONES, output)
-    second_run = current_run_dir(output)
+    second = run_pipeline(spark, SAMPLE_INPUT, ZONES, output, "2025-01")
+    second_run = current_run_dir(partition_dir(output, "2025-01"))
 
     assert second["run_id"] != first["run_id"]
     # A execução anterior foi removida; só a atual permanece publicada.
     assert not first_run.exists()
-    assert sorted(entry.name for entry in (output / "runs").iterdir()) == [second["run_id"]]
-    assert not any(entry.name.startswith(".tmp-") for entry in (output / "runs").iterdir())
+    assert sorted(entry.name for entry in (partition_dir(output, "2025-01") / "runs").iterdir()) == [second["run_id"]]
+    assert not any(entry.name.startswith(".tmp-") for entry in (partition_dir(output, "2025-01") / "runs").iterdir())
 
     for name, expected_count in TABLES.items():
         contents, count = _table_contents(spark, second_run, name)

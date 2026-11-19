@@ -4,7 +4,7 @@ Pipeline local para estimar a demanda de corridas de táxi amarelo (Yellow Taxi)
 
 Projeto pessoal de portfólio. Foco em decisões de engenharia de dados: validação, regras de qualidade explícitas, publicação segura, testes e reprodutibilidade.
 
-**Estado atual:** primeira entrega funcional. Roda em PySpark local com uma amostra sintética. Ainda não processa meses reais, não tem Airflow, CI nem integração com AWS. O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
+**Estado atual:** primeira entrega (amostra sintética), etapa 1 (download de 2024-12 e 2025-01 com manifesto) e etapa 2 (processamento mensal particionado). Ainda não há Airflow, CI nem integração com AWS. O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 
 ## O que a primeira entrega faz
 
@@ -51,6 +51,18 @@ A amostra não depende disso. Os dois meses fixos do projeto (2024-12 e 2025-01,
 
 Para baixar outros meses: `--month 2025-02 --month 2025-03`. Para outra origem: `--base-url`.
 
+## Processar um mês
+
+Cada mês é processado separadamente e publicado em `<saida>/month=AAAA-MM/`. Reprocessar um mês troca só a partição dele.
+
+```bash
+.venv/bin/python -m mobility_pipeline run --input data/raw/yellow_tripdata_2024-12.parquet --month 2024-12 --output data/curated
+.venv/bin/python -m mobility_pipeline run --input data/raw/yellow_tripdata_2025-01.parquet --month 2025-01 --output data/curated
+.venv/bin/python -m mobility_pipeline query --output data/curated --sql sql/demand_by_hour.sql
+```
+
+A consulta une as partições publicadas e acrescenta a coluna `partition_month`.
+
 ## Executar a amostra
 
 A amostra está versionada em `sample/yellow_sample.parquet` (23 registros sintéticos, com casos válidos e inválidos descritos em [`sample/CASOS.md`](sample/CASOS.md)).
@@ -58,6 +70,7 @@ A amostra está versionada em `sample/yellow_sample.parquet` (23 registros sint�
 ```bash
 python -m mobility_pipeline run \
   --input sample/yellow_sample.parquet \
+  --month 2025-01 \
   --output data/output/sample
 ```
 
@@ -89,7 +102,7 @@ Para escrever outra consulta, crie um arquivo `.sql` e use estas três tabelas:
 | `rejected` | Registros rejeitados, com as colunas de origem e `reject_reasons` (lista de motivos) |
 | `demand_hourly` | Uma linha por dia, hora e zona de embarque, com `trip_count` |
 
-O resumo de cada execução fica em `data/output/sample/runs/<id>/run_summary.json`. Ele traz contagens, motivos, observações e duração.
+Cada mês é publicado em `<saida>/month=AAAA-MM/`. O resumo da execução fica em `data/output/sample/month=2025-01/runs/<id>/run_summary.json`. Ele traz contagens, motivos, observações e duração.
 
 ### Motivos de rejeição
 
@@ -99,6 +112,7 @@ O resumo de cada execução fica em `data/output/sample/runs/<id>/run_summary.js
 | `missing_pickup_location` | Embarque sem zona (`PULocationID` nulo) |
 | `unknown_pickup_zone` | Zona que não existe na tabela oficial da TLC |
 | `dropoff_before_pickup` | Desembarque anterior ao embarque |
+| `outside_partition_month` | Embarque em outro mês que não o da partição (`--month`) |
 
 ## Testes
 
@@ -147,9 +161,8 @@ data/                    saídas locais (não versionado)
 
 ## Limitações
 
-- Os dois meses reais são baixados, mas ainda não são processados pelo pipeline. Isso é a etapa 2.
 - Só a amostra sintética foi executada pelo pipeline.
-- Não há partição mensal: cada execução substitui a saída inteira.
+- Cada mês é uma partição. Corridas com embarque em outro mês são rejeitadas (`outside_partition_month`). Corridas de 31/12/2024 que só aparecem no arquivo de janeiro ficam sem partição; ver `docs/REGRAS_QUALIDADE.md`.
 - Uma execução por pasta de saída por vez; não há lock.
 - Não há Airflow, CI nem métricas de desempenho ainda.
 - Nada foi testado com AWS (S3, Glue, Athena ou IAM).
