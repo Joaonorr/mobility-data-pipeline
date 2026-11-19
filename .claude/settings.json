@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(.venv/bin/python -m mobility_pipeline *)",
+      "Bash(.venv/bin/python -m pyflakes *)",
+      "Bash(.venv/bin/python scripts/build_sample_parquet.py)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(sha256sum *)",
+      "Bash(grep *)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(pip *)",
+      "Bash(curl *)",
+      "Bash(rm *)",
+      "Edit(./sample/expected/**)",
+      "Edit(./reference/**)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)"
+    ]
+  }
+}

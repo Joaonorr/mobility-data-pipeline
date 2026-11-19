@@ -1,0 +1,13 @@
+pickup_date,pickup_hour,pu_location_id,pu_borough,pu_zone,trip_count
+2025-01-06,0,132,Queens,JFK Airport,1
+2025-01-06,8,161,Manhattan,Midtown Center,5
+2025-01-06,9,161,Manhattan,Midtown Center,1
+2025-01-06,10,237,Manhattan,Upper East Side South,1
+2025-01-06,11,230,Manhattan,Times Sq/Theatre District,1
+2025-01-06,23,132,Queens,JFK Airport,1
+2025-01-07,17,161,Manhattan,Midtown Center,1
+2025-01-07,17,236,Manhattan,Upper East Side North,1
+2025-01-07,18,264,Unknown,N/A,1
+2025-01-07,18,265,N/A,Outside of NYC,1
+2025-01-07,19,132,Queens,JFK Airport,1
+2025-01-07,19,237,Manhattan,Upper East Side South,1

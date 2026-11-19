@@ -1,0 +1,8 @@
+tpep_pickup_datetime,tpep_dropoff_datetime,PULocationID,reject_reasons
+,2025-01-07 20:10:00,161,missing_pickup_datetime
+2025-01-07 20:00:00,2025-01-07 20:10:00,,missing_pickup_location
+2025-01-07 20:20:00,2025-01-07 20:35:00,999,unknown_pickup_zone
+2025-01-07 21:00:00,2025-01-07 20:50:00,161,dropoff_before_pickup
+,2025-01-07 21:20:00,999,missing_pickup_datetime;unknown_pickup_zone
+,2025-01-07 21:30:00,,missing_pickup_datetime;missing_pickup_location
+2025-01-07 21:40:00,2025-01-07 21:55:00,0,unknown_pickup_zone

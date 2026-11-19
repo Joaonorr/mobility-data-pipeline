@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mobility-data-pipeline"
+version = "0.1.0"
+description = "Pipeline local de demanda de corridas Yellow Taxi (NYC TLC) com PySpark."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# Versões fixadas em 2026-11-19 a partir do PyPI (pyspark 4.3.0 exige Python >= 3.11).
+dependencies = [
+    "pyspark==4.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "pyarrow==26.0.1",  # usado para gerar a amostra Parquet e nos testes de entradas inválidas
+    "pyflakes==4.1.0",  # checagem estática (ver /check-release)
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
