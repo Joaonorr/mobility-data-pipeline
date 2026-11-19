@@ -40,7 +40,7 @@ Resumo em `docs/ARQUITETURA.md`. Em uma frase: funções PySpark puras (`transfo
 
 | Etapa | Escopo | Decisão já tomada |
 |---|---|---|
-| 1. Download de dois meses reais | Script configurável que baixa do CloudFront (`d37ci6vzurychx.cloudfront.net`), registra URL, SHA-256, tamanho e data em um manifesto. Arquivos grandes ficam fora do Git. | **Proposta:** `2024-12` e `2025-01`. O primeiro mês não tem `cbd_congestion_fee` e o segundo tem; isso testa a tolerância a mudança de esquema. `2025-01` já foi inspecionado. Confirmar a disponibilidade e o esquema de `2024-12` antes de fixar. |
+| 1. Download de dois meses reais | **Concluída.** `python -m mobility_pipeline download` baixa do CloudFront, registra URL, SHA-256, tamanho e data em `data/raw/manifest.json`, e grava o resultado de cada execução. Arquivos grandes ficam fora do Git. | Meses fixados: `2024-12` (sem `cbd_congestion_fee`) e `2025-01` (com ela). Testa a tolerância a mudança de esquema. Ambos foram baixados e têm as colunas exigidas (ver `reference/FONTES.md`). |
 | 2. Processamento mensal particionado | Saída particionada por mês de embarque. Reexecutar um mês substitui só a partição dele. | Tratar os 22 registros fora do mês (ver `docs/REGRAS_QUALIDADE.md`). |
 | 3. DAG do Airflow | Tarefas: ingestão, validação, transformação e publicação, com retries e reprocessamento de um mês. | Fixar `apache-airflow` depois de confirmar a versão e a data de publicação no PyPI. |
 | 4. Métricas por execução | Lidos, válidos, rejeitados, duração, partição e status. Falha nunca publica saída incompleta. | Já existe um `run_summary.json` com parte disso; a etapa 4 o estende a todas as partições. |

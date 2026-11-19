@@ -35,6 +35,22 @@ pip install -e ".[dev]"
 export JAVA_HOME=/caminho/para/um/jdk-17-21-ou-25
 ```
 
+## Baixar os meses reais (opcional)
+
+A amostra não depende disso. Os dois meses fixos do projeto (2024-12 e 2025-01, configurados em `reference/tlc_download.json`) podem ser baixados assim:
+
+```bash
+.venv/bin/python -m mobility_pipeline download
+```
+
+- Os arquivos vão para `data/raw/` (ignorado pelo Git; não versione) e o manifesto para `data/raw/manifest.json`.
+- Cada arquivo registra URL, SHA-256, tamanho e data UTC. Cada execução registra o resultado por mês.
+- Reexecutar reaproveita o arquivo se o SHA-256 em disco ainda bate com o manifesto.
+- Uma falha em um mês não apaga o outro nem o arquivo anterior, e o comando termina com código 1.
+- A TLC não publica checksum nesta fonte. O SHA-256 garante integridade local, não a origem.
+
+Para baixar outros meses: `--month 2025-02 --month 2025-03`. Para outra origem: `--base-url`.
+
 ## Executar a amostra
 
 A amostra está versionada em `sample/yellow_sample.parquet` (23 registros sintéticos, com casos válidos e inválidos descritos em [`sample/CASOS.md`](sample/CASOS.md)).
@@ -131,7 +147,8 @@ data/                    saídas locais (não versionado)
 
 ## Limitações
 
-- Só a amostra sintética foi executada. Nenhum mês real foi processado nesta entrega.
+- Os dois meses reais são baixados, mas ainda não são processados pelo pipeline. Isso é a etapa 2.
+- Só a amostra sintética foi executada pelo pipeline.
 - Não há partição mensal: cada execução substitui a saída inteira.
 - Uma execução por pasta de saída por vez; não há lock.
 - Não há Airflow, CI nem métricas de desempenho ainda.

@@ -1,13 +1,13 @@
 # Arquitetura
 
-Estado desta entrega: **primeira entrega funcional local**, com a amostra sintética. Os blocos marcados como "próxima etapa" não existem ainda.
+Estado: **primeira entrega funcional local** (amostra sintética) e **etapa 1** (download dos dois meses reais com manifesto). Os blocos marcados como "próxima etapa" não existem ainda.
 
 ## Fluxo
 
 ```
   Fonte TLC (Parquet mensal)            Tabela oficial de zonas (CSV)
-  [próxima etapa: download               reference/taxi_zone_lookup.csv
-   com URL, SHA-256 e metadados]                    |
+  [etapa 1, feita: download com          reference/taxi_zone_lookup.csv
+   URL, SHA-256 e manifesto em data/raw]            |
               |                                     |
               v                                     v
   +---------------------------------------------------------------+

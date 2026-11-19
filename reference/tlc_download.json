@@ -1,0 +1,9 @@
+{
+  "base_url": "https://d37ci6vzurychx.cloudfront.net/trip-data",
+  "months": ["2024-12", "2025-01"],
+  "notes": [
+    "Dois meses fixos do projeto. 2024-12 não tem cbd_congestion_fee; 2025-01 tem (ver docs/REGRAS_QUALIDADE.md).",
+    "nyc.gov responde HTTP 403 a download direto; o host do CloudFront é o usado.",
+    "Arquivos reais ficam em data/raw (ignorado pelo Git)."
+  ]
+}

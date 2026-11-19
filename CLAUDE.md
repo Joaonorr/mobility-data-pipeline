@@ -11,6 +11,7 @@ Use o Python do venv diretamente; não há `activate` persistente entre comandos
 
 ```bash
 .venv/bin/python -m pytest                                   # suíte completa (28 testes, ~25 s)
+.venv/bin/python -m mobility_pipeline download                # baixa os 2 meses de reference/tlc_download.json para data/raw (manifesto)
 .venv/bin/python -m mobility_pipeline run --input sample/yellow_sample.parquet --output data/output/sample
 .venv/bin/python -m mobility_pipeline query --output data/output/sample --sql sql/rejected_by_reason.sql
 .venv/bin/python scripts/build_sample_parquet.py             # regenera sample/yellow_sample.parquet
@@ -21,7 +22,7 @@ Java 17, 21 ou 25 é obrigatório para o Spark. `JAVA_HOME` fica em `.claude/set
 
 ## Layout
 
-- `src/mobility_pipeline/`: `transform.py` (regras e agregação, puro), `pipeline.py` (execução e publicação), `inputs.py` (validação), `query.py`, `cli.py`
+- `src/mobility_pipeline/`: `transform.py` (regras e agregação, puro), `pipeline.py` (execução e publicação), `inputs.py` (validação), `download.py` (download e manifesto), `query.py`, `cli.py`
 - `tests/`: testes pytest; `helpers.py` lê os resultados esperados
 - `sample/`: amostra sintética (`yellow_sample_input.csv` é a fonte legível), `CASOS.md`, `expected/` (escrito à mão)
 - `reference/`: tabela oficial de zonas e `FONTES.md` (URLs, SHA-256, versões)
